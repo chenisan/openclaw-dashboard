@@ -18,6 +18,7 @@
         <div v-for="task in active" :key="task.started_at + task.type" class="card running">
           <div class="card-type">{{ task.type_label }}</div>
           <div class="card-name">{{ task.name }}</div>
+          <div v-if="task.message" class="card-node">{{ task.message }}</div>
           <div class="card-elapsed">{{ task.elapsed }}s</div>
         </div>
       </div>
@@ -61,6 +62,13 @@
       <div v-if="!events.length" class="empty">{{ t('noData') }}</div>
     </section>
 
+    <section>
+      <h2>🔀 {{ t('workflowGraph') }}</h2>
+      <div class="mermaid-wrap">
+        <pre class="mermaid">{{ mermaidDef }}</pre>
+      </div>
+    </section>
+
     <footer>{{ t('lastUpdate') }}: {{ lastUpdate }}</footer>
   </div>
 </template>
@@ -72,14 +80,31 @@ const I18N = {
     events: '事件紀錄', time: '時間', type: '類型', name: '名稱',
     status: '狀態', message: '訊息', noData: '尚無事件記錄',
     lastUpdate: '最後更新', online: '運行中', offline: '離線',
+    workflowGraph: '工作流程圖',
   },
   en: {
     title: 'IsanX13 Monitor', running: 'Running', stats: 'Statistics',
     events: 'Event Log', time: 'Time', type: 'Type', name: 'Name',
     status: 'Status', message: 'Message', noData: 'No events yet',
     lastUpdate: 'Last updated', online: 'Online', offline: 'Offline',
+    workflowGraph: 'Workflow Graph',
   },
 }
+
+const MERMAID_DEF = `graph TD
+  __start__([START]) --> research
+  research[🔍 搜尋資料] --> write_copy
+  write_copy[✍️ 撰寫文案] --> review_copy
+  review_copy{🔎 審稿} -->|PASS| gen_image
+  review_copy -->|FAIL &lt; 2次| rewrite_copy
+  rewrite_copy[🔄 重寫文案] --> review_copy
+  gen_image[🎨 生成配圖] --> post_fb
+  post_fb[📣 發文 Facebook] --> notify_discord
+  notify_discord[🔔 通知 Discord] --> __end__
+  __end__([END])
+  style review_copy fill:#3a3a2d,color:#f6e05e
+  style __start__ fill:#1a2a3a,color:#63b3ed
+  style __end__ fill:#1a3a2a,color:#68d391`
 
 export default {
   data() {
@@ -87,6 +112,7 @@ export default {
       lang: localStorage.getItem('lang') || 'zh',
       events: [], stats: {}, active: [],
       musicOnline: false, lastUpdate: '--', timer: null,
+      mermaidDef: MERMAID_DEF,
     }
   },
   computed: {
@@ -121,7 +147,15 @@ export default {
       )
     },
   },
-  mounted() { this.fetchAll(); this.timer = setInterval(this.fetchAll, 4000) },
+  mounted() {
+    this.fetchAll()
+    this.timer = setInterval(this.fetchAll, 4000)
+    // 載入 Mermaid CDN
+    const s = document.createElement('script')
+    s.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'
+    s.onload = () => window.mermaid.initialize({ startOnLoad: true, theme: 'dark' })
+    document.head.appendChild(s)
+  },
   beforeUnmount() { clearInterval(this.timer) },
 }
 </script>
@@ -146,6 +180,7 @@ section h2 { font-size: 1rem; color: #a0aec0; margin-bottom: 12px; }
 .card-type { font-size: 0.75rem; color: #718096; margin-bottom: 4px; }
 .card-name { font-size: 0.95rem; color: #e2e8f0; word-break: break-all; }
 .card-elapsed { font-size: 0.8rem; color: #63b3ed; margin-top: 6px; }
+.card-node    { font-size: 0.82rem; color: #d6bcfa; margin-top: 4px; }
 .stat-row { display: flex; gap: 12px; margin-top: 6px; font-size: 0.9rem; }
 .done { color: #68d391; }
 .error { color: #fc8181; }
@@ -161,6 +196,7 @@ tr:hover td { background: #1a202c; }
 .tag.cron         { background: #2d3a3a; color: #81e6d9; }
 .tag.discord      { background: #2d2d4a; color: #a78bfa; }
 .tag.line         { background: #2d3a2d; color: #9ae6b4; }
+.tag.workflow     { background: #3a2d4a; color: #d6bcfa; }
 .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.78rem; }
 .status-badge.done     { background: #1a3a2a; color: #68d391; }
 .status-badge.error    { background: #3a1a1a; color: #fc8181; }
@@ -170,4 +206,6 @@ tr:hover td { background: #1a202c; }
 .msg-cell  { max-width: 300px; color: #a0aec0; word-break: break-all; }
 .empty { color: #4a5568; text-align: center; padding: 40px; }
 footer { margin-top: 32px; text-align: center; color: #4a5568; font-size: 0.8rem; }
+.mermaid-wrap { background: #1a202c; border: 1px solid #2d3748; border-radius: 10px; padding: 20px; overflow-x: auto; }
+.mermaid-wrap svg { max-width: 100%; }
 </style>

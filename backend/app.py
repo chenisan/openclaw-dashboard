@@ -14,6 +14,7 @@ TYPE_LABELS = {
         "design":       "圖片設計",
         "claude":       "Claude 開發",
         "orchestrator": "排程任務",
+        "workflow":     "工作流",
         "cron":         "Cron 排程",
         "discord":      "Discord",
         "line":         "LINE",
@@ -23,6 +24,7 @@ TYPE_LABELS = {
         "design":       "Image Design",
         "claude":       "Claude Dev",
         "orchestrator": "Orchestrator",
+        "workflow":     "Workflow",
         "cron":         "Cron Job",
         "discord":      "Discord",
         "line":         "LINE",
@@ -110,12 +112,17 @@ def active():
     conn = get_db()
     if not conn:
         return jsonify([])
-    # 取最近 5 分鐘內 start 但還沒有對應 done/error 的任務
-    since = int(time.time()) - 300
+    # 取最新狀態為 start/progress 的任務（done 後自動消失）
+    since = int(time.time()) - 600
     rows = conn.execute("""
-        SELECT * FROM events
-        WHERE status = 'start' AND created_at > ?
-        ORDER BY id DESC LIMIT 10
+        SELECT * FROM events e1
+        WHERE e1.id = (
+            SELECT MAX(e2.id) FROM events e2
+            WHERE e2.type = e1.type AND e2.name = e1.name
+        )
+        AND e1.status IN ('start', 'progress')
+        AND e1.created_at > ?
+        ORDER BY e1.id DESC LIMIT 10
     """, (since,)).fetchall()
     conn.close()
     labels = TYPE_LABELS.get(lang, TYPE_LABELS["zh"])
@@ -126,6 +133,7 @@ def active():
             "type":       t,
             "type_label": labels.get(t, t),
             "name":       r["name"],
+            "message":    r["message"],
             "started_at": r["created_at"],
             "elapsed":    int(time.time()) - r["created_at"],
         })
