@@ -1,0 +1,22 @@
+# Environment — NEVER commit real values
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Docker leftovers
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
